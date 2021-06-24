@@ -1,0 +1,24 @@
+{
+  "name": "foundationsbot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "foundationsbot.js",
+  "scripts": {
+    "start": "node foundationsbot",
+    "build": "tsc",
+    "dev": "npm run build && npm start"
+  },
+  "author": "",
+  "license": "AGPLv3",
+  "devDependencies": {
+    "@types/node": "^15.12.2",
+    "@types/socket.io-client": "^1",
+    "typescript": "^4.3.2"
+  },
+  "dependencies": {
+    "@tsconfig/node12": "^1.0.8",
+    "axios": "^0.21.1",
+    "dotenv": "^10.0.0",
+    "socket.io-client": "^2.4.0"
+  }
+}
