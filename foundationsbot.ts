@@ -16,12 +16,15 @@ import axios from "axios";
   let month = now.getMonth();
   const cohorts: string[] = [];
   for (let i = 0; i < 3; i++) {
-    if (++month > 12) {
-      month = 1;
-      year++;
-    }
+    if (++month > 12) month = 1, year++;
     cohorts.push(`${year}`.slice(-2) + `${month}`.padStart(2, "0"));
   }
+
+  console.log(cohorts);
+
+  const denylist = ['BCP', 'CYB', 'CPU'];
+
+  // const cohorts: string[] = ['2108-FOUNDATIONS-REPLAY', '2108-GHP-NY-WEB-FT', '2108-FSA-RM-WEB-FT'];
 
   const {
     data: { token },
@@ -53,9 +56,10 @@ import axios from "axios";
       const {
         data: { name: cohort },
       } = await learndot.get(`/api/cohorts/${data.cohort}`);
+      if (denylist.some(d => cohort.includes(d))) return;
       if (!cohorts.some(c => cohort.includes(c))) return;
       if (memory.includes(data._id)) return;
-      memory.push(data._id)
+      memory.push(data._id);
       if (process.env.SLACK_HOOK)
         await axios.post(process.env.SLACK_HOOK, {
           text: `<!here|here> New ticket by ${
