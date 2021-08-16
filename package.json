@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node foundationsbot",
     "build": "tsc",
-    "dev": "npm run build && npm start"
+    "dev": "npm run build && npm start",
+    "grade": "tsc grade && node grade"
   },
   "author": "",
   "license": "AGPLv3",
@@ -17,8 +18,12 @@
   },
   "dependencies": {
     "@tsconfig/node12": "^1.0.8",
+    "adm-zip": "^0.5.5",
     "axios": "^0.21.1",
     "dotenv": "^10.0.0",
-    "socket.io-client": "^2.4.0"
+    "googleapis": "^39.2.0",
+    "jasmine": "^3.8.0",
+    "socket.io-client": "^2.4.0",
+    "testem": "^3.4.2"
   }
 }

@@ -1,6 +1,6 @@
 "use strict";
 
-require("dotenv").config();
+import 'dotenv/config';
 import io from "socket.io-client";
 import axios from "axios";
 
@@ -11,20 +11,20 @@ import axios from "axios";
     baseURL: "https://learn.fullstackacademy.com",
   });
 
-  const now = new Date();
-  let year = now.getFullYear();
-  let month = now.getMonth();
-  const cohorts: string[] = [];
-  for (let i = 0; i < 3; i++) {
-    if (++month > 12) month = 1, year++;
-    cohorts.push(`${year}`.slice(-2) + `${month}`.padStart(2, "0"));
-  }
+  // const now = new Date();
+  // let year = now.getFullYear();
+  // let month = now.getMonth();
+  // let cohorts: string[] = [];
+  // for (let i = 0; i < 3; i++) {
+  //   if (++month > 12) month = 1, year++;
+  //   cohorts.push(`${year}`.slice(-2) + `${month}`.padStart(2, "0"));
+  // }
+
+  const cohorts: string[] = [ '2109' ];
 
   console.log(cohorts);
 
   const denylist = ['BCP', 'CYB', 'CPU'];
-
-  // const cohorts: string[] = ['2108-FOUNDATIONS-REPLAY', '2108-GHP-NY-WEB-FT', '2108-FSA-RM-WEB-FT'];
 
   const {
     data: { token },
