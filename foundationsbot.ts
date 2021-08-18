@@ -20,7 +20,7 @@ import axios from "axios";
   //   cohorts.push(`${year}`.slice(-2) + `${month}`.padStart(2, "0"));
   // }
 
-  const cohorts: string[] = [ '2109' ];
+  const cohorts: string[] = [ '2109', '2107-WEB-FDS-30', '2107-WEB-FDS-23' ];
 
   console.log(cohorts);
 

@@ -81,6 +81,8 @@ const checkpoints = [
     const grades = {};
 
     for (const s of students) {
+      console.log(s.fullName, s._id, repo);
+      await new Promise(r => setTimeout(r, 1000));
       try {
         const file = `./${s.github.login}.zip`;
         const stream = fs.createWriteStream(file);
@@ -98,7 +100,8 @@ const checkpoints = [
         await new Promise((res, rej) => testem.startCI({
           file: `./${s.github.login}/${repo}-master/testem.json`,
           cwd: `./${s.github.login}/${repo}-master`,
-          launch: 'PhantomJS'
+          launch: 'Headless Firefox',
+          port: 8081
         }, exitCode => {
           const { passed, total } = testem.app.reporter;
           grades[s._id] = '';
@@ -112,7 +115,7 @@ const checkpoints = [
         try {
           fs.unlinkSync(`./${s.github.login}.zip`);
         } catch (e) {}
-        grades[s._id] = s.github ? `No submission at https://github.com/${s.github.login}/${repo} on ${Date.now()}!` : `No GitHub acount linked as of ${Date.now()}`;
+        grades[s._id] = s.github ? `No submission at https://github.com/${s.github.login}/${repo} on ${new Date()}!` : `No GitHub acount linked as of ${new Date()}`;
         console.log(err.message);
       }
     }
