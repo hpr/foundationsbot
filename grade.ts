@@ -84,7 +84,7 @@ const checkpoints: { repo: string, sheet: string, startRow: number, idCol: strin
       console.log(s.fullName, s._id, repo);
       let github;
       try {
-        ({ data: github } = await axios.get(`https://api.github.com/user/${s.github.id}`));
+        ({ data: github } = await axios.get(`https://api.github.com/user/${s.github.id}`, { headers: { Authorization: token ${process.env.GITHUB_ACCESS_TOKEN}` } }));
       } catch (e) {
         grades[s._id] = `No GitHub acount linked as of ${new Date()}`;
         continue;
