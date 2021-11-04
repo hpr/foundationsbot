@@ -8,7 +8,7 @@ import * as AdmZip from "adm-zip";
 import * as fs from 'fs';
 import * as Testem from 'testem';
 
-const checkpoints = [
+const checkpoints: { repo: string, sheet: string, startRow: number, idCol: string, column: string }[] = [
   {
     repo: 'foundations-checkpoint-pt-1',
     sheet: 'ch1',
@@ -74,7 +74,7 @@ const checkpoints = [
       range: `'${sheet}'!${idCol}${startRow}:${idCol}`,
       auth
     });
-    const ids = values.map(v => v[0]).filter(v => v);
+    const ids = (values || []).map(v => v[0]).filter(v => v);
 
     const { data: students } = await learndot.get('/api/users/fetch', { params: { ids } });
 
@@ -82,11 +82,12 @@ const checkpoints = [
 
     for (const s of students) {
       console.log(s.fullName, s._id, repo);
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise(r => setTimeout(r, 2000));
       try {
-        const file = `./${s.github.login}.zip`;
+        const { data: github } = await axios.get(`https://api.github.com/user/${s.github.id}`);
+        const file = `./${github.login}.zip`;
         const stream = fs.createWriteStream(file);
-        const { data } = await axios.get(`https://github.com/${s.github.login}/${repo}/archive/refs/heads/master.zip`, { headers: {
+        const { data } = await axios.get(`https://github.com/${github.login}/${repo}/archive/refs/heads/master.zip`, { headers: {
           Authorization: `token ${process.env.GITHUB_ACCESS_TOKEN}`,
         }, responseType: 'stream' });
         await new Promise((resolve, reject) => {
@@ -95,27 +96,32 @@ const checkpoints = [
           stream.on('close', () => resolve(true));
         });
         const zip = new AdmZip(file);
-        await zip.extractAllTo(`./${s.github.login}`);
+        await zip.extractAllTo(`./${github.login}`);
         const testem = new Testem();
         await new Promise((res, rej) => testem.startCI({
-          file: `./${s.github.login}/${repo}-master/testem.json`,
-          cwd: `./${s.github.login}/${repo}-master`,
-          launch: 'Headless Firefox',
+          file: `./${github.login}/${repo}-master/testem.json`,
+          cwd: `./${github.login}/${repo}-master`,
+          launch: 'Headless Chrome',
           port: 8081
         }, exitCode => {
           const { passed, total } = testem.app.reporter;
           grades[s._id] = '';
-          for (const { result } of testem.app.reporter.reporters[0].results) grades[s._id] += result.passed ? '✅' : '❌';
-          grades[s._id] += `: ${passed} / ${total} tests (${Math.round(passed / total * 100)}%)`;
+          const names = {};
+          for (const { result } of testem.app.reporter.reporters[0].results) {
+            const resName = result.name.split(' ')[0];
+            names[resName] = (names[resName] || '') + (result.passed ? '✅' : '❌');
+          }
+          for (let resName in names) grades[s._id] += `${resName} ${names[resName]} `;
+          grades[s._id] += `${passed} / ${total} tests (${Math.round(passed / total * 100)}%)`;
           res(exitCode);
         }));
-        fs.rmdirSync(`./${s.github.login}`, { recursive: true });
+        fs.rmdirSync(`./${github.login}`, { recursive: true });
         fs.unlinkSync(file);
       } catch (err) {
         try {
-          fs.unlinkSync(`./${s.github.login}.zip`);
+          fs.unlinkSync(`./${github.login}.zip`);
         } catch (e) {}
-        grades[s._id] = s.github ? `No submission at https://github.com/${s.github.login}/${repo} on ${new Date()}!` : `No GitHub acount linked as of ${new Date()}`;
+        grades[s._id] = s.github ? `No submission at https://github.com/${github.login}/${repo} on ${new Date()}!` : `No GitHub acount linked as of ${new Date()}`;
         console.log(err.message);
       }
     }
@@ -125,7 +131,7 @@ const checkpoints = [
       range: `'${sheet}'!${column}${startRow}:${column}`,
       valueInputOption: 'RAW',
       requestBody: {
-        values: values.map(([ id ]) => [ grades[id] ])
+        values: (values || []).map(([ id ]) => [ grades[id] ])
       },
       auth
     });
