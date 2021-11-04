@@ -82,9 +82,15 @@ const checkpoints: { repo: string, sheet: string, startRow: number, idCol: strin
 
     for (const s of students) {
       console.log(s.fullName, s._id, repo);
+      let github;
+      try {
+        ({ data: github } = await axios.get(`https://api.github.com/user/${s.github.id}`));
+      } catch (e) {
+        grades[s._id] = `No GitHub acount linked as of ${new Date()}`;
+        continue;
+      }
       await new Promise(r => setTimeout(r, 2000));
       try {
-        const { data: github } = await axios.get(`https://api.github.com/user/${s.github.id}`);
         const file = `./${github.login}.zip`;
         const stream = fs.createWriteStream(file);
         const { data } = await axios.get(`https://github.com/${github.login}/${repo}/archive/refs/heads/master.zip`, { headers: {
@@ -118,10 +124,8 @@ const checkpoints: { repo: string, sheet: string, startRow: number, idCol: strin
         fs.rmdirSync(`./${github.login}`, { recursive: true });
         fs.unlinkSync(file);
       } catch (err) {
-        try {
-          fs.unlinkSync(`./${github.login}.zip`);
-        } catch (e) {}
-        grades[s._id] = s.github ? `No submission at https://github.com/${github.login}/${repo} on ${new Date()}!` : `No GitHub acount linked as of ${new Date()}`;
+        try { fs.unlinkSync(`./${github.login}.zip`); } catch (e) {}
+        grades[s._id] = `No submission at https://github.com/${github.login}/${repo} on ${new Date()}!`;
         console.log(err.message);
       }
     }
