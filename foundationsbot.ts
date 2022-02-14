@@ -20,11 +20,11 @@ import axios from "axios";
   //   cohorts.push(`${year}`.slice(-2) + `${month}`.padStart(2, "0"));
   // }
 
-  const cohorts: string[] = [ '2109', '2107-WEB-FDS-30', '2107-WEB-FDS-23' ];
+  const cohorts: string[] = [ '2202' ];
 
   console.log(cohorts);
 
-  const denylist = ['BCP', 'CYB', 'CPU'];
+  const denylist = ['BCP', 'CYB', 'CPU', 'OKU', 'FTB'];
 
   const {
     data: { token },
@@ -60,6 +60,7 @@ import axios from "axios";
       if (!cohorts.some(c => cohort.includes(c))) return;
       if (memory.includes(data._id)) return;
       memory.push(data._id);
+
       if (process.env.SLACK_HOOK)
         await axios.post(process.env.SLACK_HOOK, {
           text: `<!here|here> New ticket by ${
