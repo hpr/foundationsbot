@@ -1,6 +1,5 @@
 .env
 node_modules
-foundationsbot.js
-grade.js
+*.js
 credentials.json
 *.zip
