@@ -19,7 +19,7 @@
   "dependencies": {
     "@tsconfig/node12": "^1.0.8",
     "adm-zip": "^0.5.5",
-    "axios": "^0.21.1",
+    "axios": "^0.27.2",
     "dotenv": "^10.0.0",
     "googleapis": "^39.2.0",
     "jasmine": "^3.8.0",
