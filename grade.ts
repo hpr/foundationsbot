@@ -1,107 +1,46 @@
 "use strict";
-
 import 'dotenv/config';
-
 import axios from "axios";
 import { google } from 'googleapis';
 import * as AdmZip from "adm-zip";
 import * as fs from 'fs';
 import * as Testem from 'testem';
-
-const checkpoints: { repo: string, sheet: string, startRow: number, idCol: string, column: string, canvasName: string }[] = [
-  {
-    repo: 'foundations-checkpoint-pt-1',
-    sheet: 'ch1',
-    startRow: 5,
-    idCol: 'D',
-    column: 'N',
-    canvasName: 'Foundations: Assessment 1',
-  },
-  {
-    repo: 'foundations-checkpoint-1-R',
-    sheet: 'ch1-replay',
-    startRow: 4,
-    idCol: 'D',
-    column: 'M',
-    canvasName: 'Foundations: Assessment 1 - Retake for Replay Students',
-  },
-  {
-    repo: 'foundations-checkpoint-pt-2',
-    sheet: 'ch2',
-    startRow: 5,
-    idCol: 'D',
-    column: 'N',
-    canvasName: 'Foundations: Assessment 2',
-  },
-  {
-    repo: 'foundations-checkpoint-2-R',
-    sheet: 'ch2-replay',
-    startRow: 4,
-    idCol: 'D',
-    column: 'M',
-    canvasName: 'Foundations: Assessment 2 - Retake for Replay Students',
-  },
-  {
-    repo: 'foundations-final-checkpoint',
-    sheet: 'final',
-    startRow: 5,
-    idCol: 'D',
-    column: 'P',
-    canvasName: 'Foundations: Final Assessment',
-  },
-  {
-    repo: 'foundations-checkpoint-final-r',
-    sheet: 'final-replay',
-    startRow: 5,
-    idCol: 'D',
-    column: 'L',
-    canvasName: 'Foundations: Final Assessment - Retake for Replay Students',
-  },
-];
+import checkpoints from './checkpoints';
 
 (async () => {
   const auth = await google.auth.getClient({ scopes: ['https://www.googleapis.com/auth/spreadsheets'] });
   const sheets = google.sheets('v4');
-
   const learndot = axios.create({ baseURL: 'https://learn.fullstackacademy.com' });
-  const {
-    data: { token },
-  } = await learndot.post("/auth/local", {
+  const { data: { token } } = await learndot.post("/auth/local", {
     email: process.env.LEARNDOT_EMAIL,
     password: process.env.LEARNDOT_PASSWORD,
   });
   learndot.defaults.headers.common.Cookie = `token=${token};`;
   const canvas = axios.create({ baseURL: 'https://fullstack.instructure.com/api/v1' });
   canvas.defaults.headers.common.Authorization = `Bearer ${process.env.CANVAS_ACCESS_TOKEN}`;
-
   const quizzes = (await canvas.get(`/courses/${process.env.CANVAS_COURSE_ID}/quizzes`)).data;
+
   for (const { repo, sheet, startRow, idCol, column, canvasName } of checkpoints) {
     const quizId = quizzes.find(quiz => quiz.title === canvasName).id;
     const submissions = (await canvas.get(`/courses/${process.env.CANVAS_COURSE_ID}/quizzes/${quizId}/submissions?per_page=9999`)).data.quiz_submissions;
     const { data: { values } } = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.SPREADSHEET_ID,
       range: `'${sheet}'!${idCol}${startRow}:${idCol}`,
-      auth
+      auth,
     });
     const ids = (values ?? []).map(v => v[0]).filter(v => v);
-
     const { data: students } = await learndot.get('/api/users/fetch', { params: { ids } });
     const canvasStudents = (await canvas.get(`/courses/${process.env.CANVAS_COURSE_ID}/users?per_page=9999`)).data;
-
     const grades = {};
-
     for (const s of students) {
       console.log(s.fullName, s._id, repo);
-      let github: string;
-      let canvasId, submissionId, submissionEvents = [] as any;
+      let github: string, canvasId, submissionId, submissionEvents = [] as any;
       try {
          canvasId = canvasStudents.find(cs => cs.login_id === s.email).id;
          submissionId = submissions.find(sub => sub.user_id === canvasId).id;
          submissionEvents = (await canvas.get(`/courses/${process.env.CANVAS_COURSE_ID}/quizzes/${quizId}/submissions/${submissionId}/events?per_page=99999`)).data.quiz_submission_events;
         github = submissionEvents.flatMap(evt => evt?.event_data).reverse().find(ed => ed?.answer?.includes('github.com')).answer.split(/github.com./)[1].split('/')[0];
       } catch (e) {
-        console.log(e);
-        console.log(canvasId, submissionId, JSON.stringify(submissionEvents));
         grades[s._id] = `No Github account in submission as of ${new Date()}`;
         continue;
       }
@@ -157,4 +96,3 @@ const checkpoints: { repo: string, sheet: string, startRow: number, idCol: strin
     });
   }
 })();
-
