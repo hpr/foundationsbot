@@ -41,7 +41,7 @@ import checkpoints from './checkpoints';
          submissionEvents = (await canvas.get(`/courses/${process.env.CANVAS_COURSE_ID}/quizzes/${quizId}/submissions/${submissionId}/events?per_page=99999`)).data.quiz_submission_events;
         github = submissionEvents.flatMap(evt => evt?.event_data).reverse().find(ed => ed?.answer?.includes('github.com')).answer.split(/github.com./)[1].split('/')[0];
       } catch (e) {
-        grades[s._id] = `No Github account in submission as of ${new Date()}`;
+        grades[s._id] = `No Github account in submission: https://fullstack.instructure.com/courses/${process.env.CANVAS_COURSE_ID}/quizzes/${quizId}/history?user_id=${canvasId} at ${new Date().toISOString()}`;
         continue;
       }
       await new Promise(r => setTimeout(r, 2000));
@@ -74,13 +74,14 @@ import checkpoints from './checkpoints';
           }
           for (let resName in names) grades[s._id] += `${resName} ${names[resName]} `;
           grades[s._id] += `${passed} / ${total} tests (${Math.round(passed / total * 100)}%)`;
+          grades[s._id] += `: git@github.com:${github}/${repo}.git`;
           res(exitCode);
         }));
         fs.rmdirSync(`./${github}`, { recursive: true });
         fs.unlinkSync(file);
       } catch (err) {
         try { fs.unlinkSync(`./${github}.zip`); } catch (e) {}
-        grades[s._id] = `No submission at https://github.com/${github}/${repo} on ${new Date()}!`;
+        grades[s._id] = `No submission at https://github.com/${github}/${repo} on ${new Date().toISOString()}!`;
         console.log(err.message);
       }
     }
