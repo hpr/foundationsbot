@@ -8,6 +8,7 @@ import * as Testem from 'testem';
 import checkpoints from './checkpoints';
 
 (async () => {
+  const courseIds = process.env.CANVAS_COURSE_IDS.split(',');
   const auth = await google.auth.getClient({ scopes: ['https://www.googleapis.com/auth/spreadsheets'] });
   const sheets = google.sheets('v4');
   const learndot = axios.create({ baseURL: 'https://learn.fullstackacademy.com' });
@@ -18,11 +19,17 @@ import checkpoints from './checkpoints';
   learndot.defaults.headers.common.Cookie = `token=${token};`;
   const canvas = axios.create({ baseURL: 'https://fullstack.instructure.com/api/v1' });
   canvas.defaults.headers.common.Authorization = `Bearer ${process.env.CANVAS_ACCESS_TOKEN}`;
-  const quizzes = (await canvas.get(`/courses/${process.env.CANVAS_COURSE_ID}/quizzes`)).data;
+  const quizzes = {};
+  for (const cid of courseIds)
+    quizzes[cid] = (await canvas.get(`/courses/${cid}/quizzes`)).data;
 
   for (const { repo, sheet, startRow, idCol, column, canvasName } of checkpoints) {
-    const quizId = quizzes.find(quiz => quiz.title === canvasName).id;
-    const submissions = (await canvas.get(`/courses/${process.env.CANVAS_COURSE_ID}/quizzes/${quizId}/submissions?per_page=9999`)).data.quiz_submissions;
+    const quizIds = {};
+    for (const cid of courseIds)
+      quizIds[cid] = quizzes[cid].find(quiz => quiz.title === canvasName).id;
+    const submissions = {};
+    for (const cid of courseIds)
+      submissions[cid] = (await canvas.get(`/courses/${cid}/quizzes/${quizIds[cid]}/submissions?per_page=9999`)).data.quiz_submissions;
     const { data: { values } } = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.SPREADSHEET_ID,
       range: `'${sheet}'!${idCol}${startRow}:${idCol}`,
@@ -30,18 +37,21 @@ import checkpoints from './checkpoints';
     });
     const ids = (values ?? []).map(v => v[0]).filter(v => v);
     const { data: students } = await learndot.get('/api/users/fetch', { params: { ids } });
-    const canvasStudents = (await canvas.get(`/courses/${process.env.CANVAS_COURSE_ID}/users?per_page=9999`)).data;
+    const canvasStudents = {};
+    for (const cid of courseIds)
+      canvasStudents[cid] = (await canvas.get(`/courses/${cid}/users?per_page=9999`)).data;
     const grades = {};
     for (const s of students) {
       console.log(s.fullName, s._id, repo);
-      let github: string, canvasId, submissionId, submissionEvents = [] as any;
+      let github: string, canvasId, submissionId, courseId, submissionEvents = [] as any;
       try {
-         canvasId = canvasStudents.find(cs => cs.login_id === s.email).id;
-         submissionId = submissions.find(sub => sub.user_id === canvasId).id;
-         submissionEvents = (await canvas.get(`/courses/${process.env.CANVAS_COURSE_ID}/quizzes/${quizId}/submissions/${submissionId}/events?per_page=99999`)).data.quiz_submission_events;
+        courseId = Object.keys(canvasStudents).find(cid => canvasStudents[cid].find(cs => cs.login_id === s.email));
+        canvasId = canvasStudents[courseId].find(cs => cs.login_id === s.email).id;
+        submissionId = submissions[courseId].find(sub => sub.user_id === canvasId).id;
+        submissionEvents = (await canvas.get(`/courses/${courseId}/quizzes/${quizIds[courseId]}/submissions/${submissionId}/events?per_page=99999`)).data.quiz_submission_events;
         github = submissionEvents.flatMap(evt => evt?.event_data).reverse().find(ed => ed?.answer?.includes('github.com')).answer.split(/github.com./)[1].split('/')[0];
       } catch (e) {
-        grades[s._id] = `No Github account in submission: https://fullstack.instructure.com/courses/${process.env.CANVAS_COURSE_ID}/quizzes/${quizId}/history?user_id=${canvasId} at ${new Date().toISOString()}`;
+        grades[s._id] = `No Github account in submission: https://fullstack.instructure.com/courses/${courseId}/quizzes/${quizIds[courseId]}/history?user_id=${canvasId} at ${new Date().toISOString()}`;
         continue;
       }
       await new Promise(r => setTimeout(r, 2000));
@@ -66,22 +76,21 @@ import checkpoints from './checkpoints';
           port: 8081
         }, exitCode => {
           const { passed, total } = testem.app.reporter;
-          grades[s._id] = '';
+          grades[s._id] = [`https://github.com/${github}/${repo}`, ''];
           const names = {};
           for (const { result } of testem.app.reporter.reporters[0].results) {
             const resName = result.name.split(' ')[0];
             names[resName] = (names[resName] || '') + (result.passed ? '✅' : '❌');
           }
-          for (let resName in names) grades[s._id] += `${resName} ${names[resName]} `;
-          grades[s._id] += `${passed} / ${total} tests (${Math.round(passed / total * 100)}%)`;
-          grades[s._id] += `: git@github.com:${github}/${repo}.git`;
+          for (let resName in names) grades[s._id][1] += `${resName} ${names[resName]} `;
+          grades[s._id][1] += `${passed} / ${total} tests (${Math.round(passed / total * 100)}%)`;
           res(exitCode);
         }));
         fs.rmdirSync(`./${github}`, { recursive: true });
         fs.unlinkSync(file);
       } catch (err) {
         try { fs.unlinkSync(`./${github}.zip`); } catch (e) {}
-        grades[s._id] = `No submission at https://github.com/${github}/${repo} on ${new Date().toISOString()}!`;
+        grades[s._id][1] = `No submission on ${new Date().toISOString()}!`;
         console.log(err.message);
       }
     }
@@ -91,7 +100,16 @@ import checkpoints from './checkpoints';
       range: `'${sheet}'!${column}${startRow}:${column}`,
       valueInputOption: 'RAW',
       requestBody: {
-        values: (values || []).map(([ id ]) => [ grades[id] ])
+        values: (values || []).map(([ id ]) => [ grades[id] ? grades[id][0] : '' ])
+      },
+      auth
+    });
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: process.env.SPREADSHEET_ID,
+      range: `'${sheet}'!${column}${startRow}:${String.fromCharCode(column.charCodeAt(0) + 1)}`,
+      valueInputOption: 'RAW',
+      requestBody: {
+        values: (values || []).map(([ id ]) => [ grades[id] ? grades[id][1] : '' ])
       },
       auth
     });
