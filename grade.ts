@@ -104,9 +104,10 @@ import checkpoints from './checkpoints';
       },
       auth
     });
+    const nextCol = String.fromCharCode(column.charCodeAt(0) + 1);
     await sheets.spreadsheets.values.update({
       spreadsheetId: process.env.SPREADSHEET_ID,
-      range: `'${sheet}'!${column}${startRow}:${String.fromCharCode(column.charCodeAt(0) + 1)}`,
+      range: `'${sheet}'!${nextCol}${startRow}:${nextCol}`,
       valueInputOption: 'RAW',
       requestBody: {
         values: (values || []).map(([ id ]) => [ grades[id] ? grades[id][1] : '' ])
