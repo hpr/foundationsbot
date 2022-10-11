@@ -90,7 +90,7 @@ import checkpoints from './checkpoints';
         fs.unlinkSync(file);
       } catch (err) {
         try { fs.unlinkSync(`./${github}.zip`); } catch (e) {}
-        grades[s._id][1] = `No submission on ${new Date().toISOString()}!`;
+        grades[s._id] = ['', `No submission on ${new Date().toISOString()}!`];
         console.log(err.message);
       }
     }
