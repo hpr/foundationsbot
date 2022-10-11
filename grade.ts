@@ -51,7 +51,7 @@ import checkpoints from './checkpoints';
         submissionEvents = (await canvas.get(`/courses/${courseId}/quizzes/${quizIds[courseId]}/submissions/${submissionId}/events?per_page=99999`)).data.quiz_submission_events;
         github = submissionEvents.flatMap(evt => evt?.event_data).reverse().find(ed => ed?.answer?.includes('github.com')).answer.split(/github.com./)[1].split('/')[0];
       } catch (e) {
-        grades[s._id][1] = `No Github account in submission: https://fullstack.instructure.com/courses/${courseId}/quizzes/${quizIds[courseId]}/history?user_id=${canvasId} at ${new Date().toISOString()}`;
+        grades[s._id] = [`https://fullstack.instructure.com/courses/${courseId}/quizzes/${quizIds[courseId]}/history?user_id=${canvasId}`, `No Github account in submission at ${new Date().toISOString()}`];
         continue;
       }
       await new Promise(r => setTimeout(r, 2000));
